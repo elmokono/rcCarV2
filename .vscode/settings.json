@@ -1,3 +1,4 @@
 {
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "cmake.sourceDirectory": "C:/Users/daniel/source/repos/pico/rcCarV2/.pio/libdeps/pico/Adafruit BusIO"
 }
