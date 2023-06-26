@@ -7,7 +7,7 @@
 // raspberry pi pico
 #define GAS_PIN 26
 #define SERVO_PIN 27
-#define RX_PIN 28
+#define RX_PIN 22 //28
 
 #define SERVO_DELAY_MS 15
 
@@ -32,7 +32,7 @@ void setup()
 
   servo.attach(SERVO_PIN);
   servo.write(90);
-  delay(50);
+  delay(SERVO_DELAY_MS);
 
   pinMode(GAS_PIN, OUTPUT);
 
@@ -43,48 +43,61 @@ void setup()
   Serial.println("RC Car V2 ready");
 }
 
-void checkGas(char command)
+void checkGas(uint8_t gasLevel)
 {
-  if (command == 'F')
-  {
-    analogWrite(GAS_PIN, 255);
-  }
-  if (command == 'S')
-  {
-    analogWrite(GAS_PIN, 0);
-  }
+  Serial.print("',gas:");
+  Serial.print(gasLevel);
+  analogWrite(GAS_PIN, gasLevel);
 }
 
-void checkServo(char command)
+void checkServo(uint8_t steerLevel)
 {
-  if (command == 'L')
-  {
-    servo.write(40);
-    delay(SERVO_DELAY_MS);
-  }
-  if (command == 'R')
-  {
-    servo.write(140);
-    delay(SERVO_DELAY_MS);
-  }
+  Serial.print("',steer:");
+  Serial.print(steerLevel);
+
+  // 0 >= steerLevel <= 255
+  // angle between 40 and 140
+  int value = (steerLevel * 100.0 / 255.0);
+  servo.write(value + 40);
+  delay(SERVO_DELAY_MS);
 }
 
 void loop()
 {
-  uint8_t buf[1];
+  uint8_t buf[6];
   uint8_t buflen = sizeof(buf);
 
-  if (driver.recv(buf, &buflen)) // Non-blocking
+  if (driver.recv(buf, &buflen))
   {
+    driver.printBuffer("Got:", buf, buflen);
+
     digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
 
-    char command = ((char *)buf)[0];
-    Serial.println(command);
+    Serial.print("length:");
+    Serial.print(buflen);
+    Serial.print(",begin ctrl:");
+    Serial.print(buf[0]);
+    Serial.print(",leds:':");
+    Serial.print(buf[3]);
+    Serial.print(",end ctrl:");
+    Serial.println(buf[5]);
 
-    checkGas(command);
+    if (buf[0] == 0 && buf[5] == 0)
+    {
+      // buff[0]=0x0
+      // buff[1]=0-255
+      // buff[2]=0-255
+      // buff[3]=0-3
+      // buff[4]=0
+      // buff[5]=0x0
 
-    checkServo(command);
+      // char command = ((char *)buf)[0];
+      // Serial.println(command);
 
+      checkGas(buf[1]);
+
+      checkServo(buf[2]);
+    }
     digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
   }
 }
