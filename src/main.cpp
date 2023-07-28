@@ -7,12 +7,13 @@
 // raspberry pi pico
 #define GAS_PIN 26
 #define SERVO_PIN 27
-#define RX_PIN 22 //28
+#define RX_PIN 22 // 28
 
 #define SERVO_DELAY_MS 15
 
 RH_ASK driver(2000, RX_PIN, 20);
 Servo servo;
+unsigned long lastGasCheck = 0;
 
 void setup()
 {
@@ -24,9 +25,9 @@ void setup()
     while (true)
     {
       digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
-      delay(500);
+      delay(250);
       digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
-      delay(500);
+      delay(250);
     }
   }
 
@@ -35,6 +36,7 @@ void setup()
   delay(SERVO_DELAY_MS);
 
   pinMode(GAS_PIN, OUTPUT);
+  lastGasCheck = millis();
 
   digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
   delay(1000);
@@ -64,7 +66,7 @@ void checkServo(uint8_t steerLevel)
 
 void loop()
 {
-  uint8_t buf[6];
+  uint8_t buf[4];
   uint8_t buflen = sizeof(buf);
 
   if (driver.recv(buf, &buflen))
@@ -73,31 +75,25 @@ void loop()
 
     digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
 
-    Serial.print("length:");
-    Serial.print(buflen);
-    Serial.print(",begin ctrl:");
-    Serial.print(buf[0]);
-    Serial.print(",leds:':");
-    Serial.print(buf[3]);
-    Serial.print(",end ctrl:");
-    Serial.println(buf[5]);
+    // buff[0]=0x0
+    // buff[1]=0-255
+    // buff[2]=0-255
+    // buff[3]=0-3
+    // char command = ((char *)buf)[0];
+    // Serial.println(command);
 
-    if (buf[0] == 0 && buf[5] == 0)
-    {
-      // buff[0]=0x0
-      // buff[1]=0-255
-      // buff[2]=0-255
-      // buff[3]=0-3
-      // buff[4]=0
-      // buff[5]=0x0
+    checkGas(buf[1]);
+    checkServo(buf[2]);
 
-      // char command = ((char *)buf)[0];
-      // Serial.println(command);
-
-      checkGas(buf[1]);
-
-      checkServo(buf[2]);
-    }
     digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
+    lastGasCheck = millis();
+  }
+  else
+  {
+    // no signal, slow down to zero
+    if (millis() - lastGasCheck > 250)
+    {
+      checkGas(0);
+    }
   }
 }

@@ -22,7 +22,7 @@
 
 RH_ASK driver(2000, -1, TX, -1, false, 1);
 
-uint8_t buffer[6];
+uint8_t buffer[4];
 int  minGas = 1023;
 int  maxGas = 0;
 int  minSteer = 1023;
@@ -55,8 +55,6 @@ void loop()
   buffer[1] = gasByte;
   buffer[2] = steerByte;
   buffer[3] = leds == LOW ? 255 : 0;
-  buffer[4] = 0x0;
-  buffer[5] = 0x0;
 
   driver.send((uint8_t *)buffer, sizeof(buffer));
   driver.waitPacketSent();
