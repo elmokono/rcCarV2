@@ -14,6 +14,8 @@
 RH_ASK driver(2000, RX_PIN, 20);
 Servo servo;
 unsigned long lastGasCheck = 0;
+uint8_t lastGas = 0;
+uint8_t lastSteer = 0;
 
 void setup()
 {
@@ -47,21 +49,31 @@ void setup()
 
 void checkGas(uint8_t gasLevel)
 {
-  Serial.print("',gas:");
-  Serial.print(gasLevel);
+  if (gasLevel == lastGas)
+  {
+    return;
+  }
+
+  // Serial.print("',gas:");
+  // Serial.print(gasLevel);
   analogWrite(GAS_PIN, gasLevel);
+  lastGas = gasLevel;
 }
 
 void checkServo(uint8_t steerLevel)
 {
-  Serial.print("',steer:");
-  Serial.print(steerLevel);
+  if (steerLevel == lastSteer)
+  {
+    return;
+  }
+  // Serial.print("',steer:");
+  // Serial.print(steerLevel);
 
   // 0 >= steerLevel <= 255
   // angle between 40 and 140
   int value = (steerLevel * 100.0 / 255.0);
   servo.write(value + 40);
-  delay(SERVO_DELAY_MS);
+  lastSteer = steerLevel;
 }
 
 void loop()
@@ -96,4 +108,6 @@ void loop()
       checkGas(0);
     }
   }
+
+  delay(SERVO_DELAY_MS);
 }

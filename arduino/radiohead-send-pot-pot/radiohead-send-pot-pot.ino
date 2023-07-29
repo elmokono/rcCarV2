@@ -13,7 +13,6 @@
   ---------
 */
 
-
 //attiny85
 #define TX 0
 #define gasAxis 3
@@ -42,22 +41,22 @@ void loop()
   int gas = analogRead(gasAxis);//0-1023
   if (gas < minGas) minGas = gas;
   if (gas > maxGas) maxGas = gas;
-  uint8_t gasByte = (gas - minGas) * 255.0 / (maxGas - minGas);
+  //uint8_t gasByte = (gas - minGas) * 255.0 / (maxGas - minGas);
 
   int steer = analogRead(steerAxis);//0-1023
   if (steer < minSteer) minSteer = steer;
   if (steer > maxSteer) maxSteer = steer;
-  uint8_t steerByte = (steer - minSteer) * 255.0 / (maxSteer - minSteer);
+  //uint8_t steerByte = (steer - minSteer) * 255.0 / (maxSteer - minSteer);
 
   int leds = digitalRead(ledsPin);
 
   buffer[0] = 0x0;
-  buffer[1] = gasByte;
-  buffer[2] = steerByte;
+  buffer[1] = map(gas, minGas, maxGas, 0, 255);
+  buffer[2] = map(steer, minSteer, maxSteer, 0, 255);
   buffer[3] = leds == LOW ? 255 : 0;
 
   driver.send((uint8_t *)buffer, sizeof(buffer));
-  driver.waitPacketSent();
+  //driver.waitPacketSent();
 
-  delay(100);
+  delay(10);
 }
