@@ -3,15 +3,23 @@
 #include <Arduino.h>
 #include <RH_ASK.h>
 #include <Servo.h>
+#include <RH_NRF24.h>
+#include <RHSoftwareSPI.h>
 
 // raspberry pi pico
 #define GAS_PIN 26
 #define SERVO_PIN 27
-#define RX_PIN 22 // 28
+
+#define CE_PIN 18
+#define CS_PIN 21
+#define SCK_PIN 19
+#define MISO_PIN 20
+#define MOSI_PIN 22
 
 #define SERVO_DELAY_MS 15
 
-RH_ASK driver(2000, RX_PIN, 20);
+RHSoftwareSPI spi;
+RH_NRF24 nrf24(CE_PIN, CS_PIN, spi);
 Servo servo;
 unsigned long lastGasCheck = 0;
 uint8_t lastGas = 0;
@@ -21,7 +29,8 @@ void setup()
 {
   Serial.begin(9600); // Debugging only
 
-  if (!driver.init())
+  spi.setPins(MISO_PIN, MOSI_PIN, SCK_PIN);  
+  if (!nrf24.init() || !nrf24.setChannel(1) || !nrf24.setRF(RH_NRF24::DataRate2Mbps, RH_NRF24::TransmitPower0dBm))
   {
     pinMode(PICO_DEFAULT_LED_PIN, OUTPUT);
     while (true)
@@ -78,27 +87,27 @@ void checkServo(uint8_t steerLevel)
 
 void loop()
 {
-  uint8_t buf[4];
-  uint8_t buflen = sizeof(buf);
-
-  if (driver.recv(buf, &buflen))
+  if (nrf24.available())
   {
-    driver.printBuffer("Got:", buf, buflen);
+    uint8_t buf[4];
+    uint8_t len = sizeof(buf);
+    if (nrf24.recv(buf, &len))
+    {
+      digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
 
-    digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
+      // buff[0]=0x0
+      // buff[1]=0-255
+      // buff[2]=0-255
+      // buff[3]=0-3
+      // char command = ((char *)buf)[0];
+      // Serial.println(command);
 
-    // buff[0]=0x0
-    // buff[1]=0-255
-    // buff[2]=0-255
-    // buff[3]=0-3
-    // char command = ((char *)buf)[0];
-    // Serial.println(command);
+      checkGas(buf[1]);
+      checkServo(buf[2]);
 
-    checkGas(buf[1]);
-    checkServo(buf[2]);
-
-    digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
-    lastGasCheck = millis();
+      digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
+      lastGasCheck = millis();
+    }
   }
   else
   {
