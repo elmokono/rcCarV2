@@ -1,25 +1,36 @@
-// #include <Wire.h>
+/*
+---------------------------
+| MISO | SCK  | CE  | GND |
+| #    | MOSI | CNS | VCC |
+|                         |
+|        (ANTENNA)        |
+---------------------------
+*/
+/*
+pico spi0 pins
+---------------------------
+#define PIN_SPI_MISO  (16u)
+#define PIN_SPI_MOSI  (19u)
+#define PIN_SPI_SCK   (18u)
+#define PIN_SPI_SS    (17u)
+*/
+
 #include <SPI.h>
 #include <Arduino.h>
-#include <RH_ASK.h>
 #include <Servo.h>
-#include <RH_NRF24.h>
-#include <RHSoftwareSPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
 
-// raspberry pi pico
-#define GAS_PIN 26
-#define SERVO_PIN 27
-
-#define CE_PIN 18
+const byte address[6] = "00001";
+#define CE_PIN 22
 #define CS_PIN 21
-#define SCK_PIN 19
-#define MISO_PIN 20
-#define MOSI_PIN 22
 
+#define SERVO_PIN 27
 #define SERVO_DELAY_MS 15
 
-RHSoftwareSPI spi;
-RH_NRF24 nrf24(CE_PIN, CS_PIN, spi);
+#define GAS_PIN 26
+
+RF24 radio(CE_PIN, CS_PIN);
 Servo servo;
 unsigned long lastGasCheck = 0;
 uint8_t lastGas = 0;
@@ -28,19 +39,21 @@ uint8_t lastSteer = 0;
 void setup()
 {
   Serial.begin(9600); // Debugging only
-
-  spi.setPins(MISO_PIN, MOSI_PIN, SCK_PIN);  
-  if (!nrf24.init() || !nrf24.setChannel(1) || !nrf24.setRF(RH_NRF24::DataRate2Mbps, RH_NRF24::TransmitPower0dBm))
+  if (!radio.begin())
   {
+    Serial.println("Failed to init radio");
     pinMode(PICO_DEFAULT_LED_PIN, OUTPUT);
     while (true)
     {
       digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
-      delay(250);
+      delay(50);
       digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
-      delay(250);
+      delay(50);
     }
   }
+  radio.openReadingPipe(0, address);
+  radio.setPALevel(RF24_PA_MIN);
+  radio.startListening();
 
   servo.attach(SERVO_PIN);
   servo.write(90);
@@ -87,27 +100,22 @@ void checkServo(uint8_t steerLevel)
 
 void loop()
 {
-  if (nrf24.available())
+  if (radio.available())
   {
     uint8_t buf[4];
-    uint8_t len = sizeof(buf);
-    if (nrf24.recv(buf, &len))
-    {
-      digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
+    radio.read(&buf, sizeof(buf));
+    digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
 
-      // buff[0]=0x0
-      // buff[1]=0-255
-      // buff[2]=0-255
-      // buff[3]=0-3
-      // char command = ((char *)buf)[0];
-      // Serial.println(command);
+    // buff[0]=0x0
+    // buff[1]=0-255
+    // buff[2]=0-255
+    // buff[3]=0-3
 
-      checkGas(buf[1]);
-      checkServo(buf[2]);
+    checkGas(buf[1]);
+    checkServo(buf[2]);
 
-      digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
-      lastGasCheck = millis();
-    }
+    digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
+    lastGasCheck = millis();
   }
   else
   {

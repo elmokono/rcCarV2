@@ -1,4 +1,16 @@
 {
     "cmake.configureOnOpen": false,
-    "cmake.sourceDirectory": "C:/Users/daniel/source/repos/pico/rcCarV2/.pio/libdeps/pico/Adafruit BusIO"
+    "cmake.sourceDirectory": "C:/Users/daniel/source/repos/pico/rcCarV2/.pio/libdeps/pico/Adafruit BusIO",
+    "files.associations": {
+        "array": "cpp",
+        "deque": "cpp",
+        "forward_list": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp"
+    }
 }
