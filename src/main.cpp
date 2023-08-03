@@ -15,13 +15,11 @@ pico spi0 pins
 #define PIN_SPI_SS    (17u)
 */
 
-#include <SPI.h>
 #include <Arduino.h>
 #include <Servo.h>
-#include <nRF24L01.h>
 #include <RF24.h>
 
-const byte address[6] = "00001";
+const byte address[6] = "00010";
 #define CE_PIN 22
 #define CS_PIN 21
 
@@ -29,6 +27,7 @@ const byte address[6] = "00001";
 #define SERVO_DELAY_MS 15
 
 #define GAS_PIN 26
+#define GAS_LIMIT 8
 
 RF24 radio(CE_PIN, CS_PIN);
 Servo servo;
@@ -51,8 +50,14 @@ void setup()
       delay(50);
     }
   }
-  radio.openReadingPipe(0, address);
+  // radio.openReadingPipe(0, address);
+  // radio.setPALevel(RF24_PA_MIN);
+  // radio.startListening();
   radio.setPALevel(RF24_PA_MIN);
+  radio.setDataRate(RF24_250KBPS);
+  radio.setChannel(124);
+  radio.openReadingPipe(0, address);
+  radio.setAutoAck(true);
   radio.startListening();
 
   servo.attach(SERVO_PIN);
@@ -63,10 +68,10 @@ void setup()
   lastGasCheck = millis();
 
   digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
-  delay(1000);
+  delay(5000);
   digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
 
-  Serial.println("RC Car V2 ready");
+  Serial.println("RC Car V3 ready");
 }
 
 void checkGas(uint8_t gasLevel)
@@ -76,10 +81,13 @@ void checkGas(uint8_t gasLevel)
     return;
   }
 
-  // Serial.print("',gas:");
-  // Serial.print(gasLevel);
+#ifdef GAS_LIMIT
+  analogWrite(GAS_PIN, gasLevel > GAS_LIMIT ? GAS_LIMIT : gasLevel);
+#else
   analogWrite(GAS_PIN, gasLevel);
+#endif
   lastGas = gasLevel;
+  Serial.println(gasLevel);
 }
 
 void checkServo(uint8_t steerLevel)
@@ -96,15 +104,17 @@ void checkServo(uint8_t steerLevel)
   int value = (steerLevel * 100.0 / 255.0);
   servo.write(value + 40);
   lastSteer = steerLevel;
+  Serial.println(value + 40);
 }
 
 void loop()
 {
   if (radio.available())
   {
-    uint8_t buf[4];
+    uint8_t buf[32];
     radio.read(&buf, sizeof(buf));
     digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
+    Serial.println("command received");
 
     // buff[0]=0x0
     // buff[1]=0-255
