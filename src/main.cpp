@@ -1,103 +1,138 @@
-// #include <Wire.h>
-#include <SPI.h>
+/*
+---------------------------
+| MISO | SCK  | CE  | GND |
+| #    | MOSI | CNS | VCC |
+|                         |
+|        (ANTENNA)        |
+---------------------------
+*/
+/*
+pico spi0 pins
+---------------------------
+#define PIN_SPI_MISO  (16u)
+#define PIN_SPI_MOSI  (19u)
+#define PIN_SPI_SCK   (18u)
+#define PIN_SPI_SS    (17u)
+*/
+
 #include <Arduino.h>
-#include <RH_ASK.h>
 #include <Servo.h>
+#include <RF24.h>
 
-// raspberry pi pico
-#define GAS_PIN 26
+const byte address[6] = "00010";
+#define CE_PIN 22
+#define CS_PIN 21
+
 #define SERVO_PIN 27
-#define RX_PIN 22 //28
-
 #define SERVO_DELAY_MS 15
 
-RH_ASK driver(2000, RX_PIN, 20);
+#define GAS_PIN 26
+#define GAS_LIMIT 128
+
+RF24 radio(CE_PIN, CS_PIN);
 Servo servo;
+unsigned long lastGasCheck = 0;
+uint8_t lastGas = 0;
+uint8_t lastSteer = 0;
 
 void setup()
 {
   Serial.begin(9600); // Debugging only
-
-  if (!driver.init())
+  if (!radio.begin())
   {
+    Serial.println("Failed to init radio");
     pinMode(PICO_DEFAULT_LED_PIN, OUTPUT);
     while (true)
     {
       digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
-      delay(500);
+      delay(50);
       digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
-      delay(500);
+      delay(50);
     }
   }
+  
+  radio.setPALevel(RF24_PA_MIN);
+  radio.setDataRate(RF24_250KBPS);
+  radio.setChannel(124);
+  radio.openReadingPipe(0, address);
+  radio.setAutoAck(true);
+  radio.startListening();
 
   servo.attach(SERVO_PIN);
   servo.write(90);
   delay(SERVO_DELAY_MS);
 
   pinMode(GAS_PIN, OUTPUT);
+  lastGasCheck = millis();
 
   digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
-  delay(1000);
+  delay(5000);
   digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
 
-  Serial.println("RC Car V2 ready");
+  Serial.println("RC Car V3 ready");
 }
 
 void checkGas(uint8_t gasLevel)
 {
-  Serial.print("',gas:");
-  Serial.print(gasLevel);
+  if (gasLevel == lastGas)
+  {
+    return;
+  }
+
+#ifdef GAS_LIMIT
+  analogWrite(GAS_PIN, gasLevel > GAS_LIMIT ? GAS_LIMIT : gasLevel);
+#else
   analogWrite(GAS_PIN, gasLevel);
+#endif
+  lastGas = gasLevel;
+  Serial.println(gasLevel);
 }
 
 void checkServo(uint8_t steerLevel)
 {
-  Serial.print("',steer:");
-  Serial.print(steerLevel);
+  if (steerLevel == lastSteer)
+  {
+    return;
+  }
+  // Serial.print("',steer:");
+  // Serial.print(steerLevel);
 
   // 0 >= steerLevel <= 255
   // angle between 40 and 140
   int value = (steerLevel * 100.0 / 255.0);
   servo.write(value + 40);
-  delay(SERVO_DELAY_MS);
+  lastSteer = steerLevel;
+  Serial.println(value + 40);
 }
 
 void loop()
 {
-  uint8_t buf[6];
-  uint8_t buflen = sizeof(buf);
-
-  if (driver.recv(buf, &buflen))
+  if (radio.available())
   {
-    driver.printBuffer("Got:", buf, buflen);
-
+    uint8_t buf[32];
+    radio.read(&buf, sizeof(buf));
     digitalWrite(PICO_DEFAULT_LED_PIN, HIGH);
+    Serial.println("command received");
 
-    Serial.print("length:");
-    Serial.print(buflen);
-    Serial.print(",begin ctrl:");
-    Serial.print(buf[0]);
-    Serial.print(",leds:':");
-    Serial.print(buf[3]);
-    Serial.print(",end ctrl:");
-    Serial.println(buf[5]);
+    // buff[0]=0x0
+    // buff[1]=0-255
+    // buff[2]=0-255
+    // buff[3]=0-3
 
-    if (buf[0] == 0 && buf[5] == 0)
-    {
-      // buff[0]=0x0
-      // buff[1]=0-255
-      // buff[2]=0-255
-      // buff[3]=0-3
-      // buff[4]=0
-      // buff[5]=0x0
+    checkGas(buf[1]);
+    checkServo(buf[2]);
 
-      // char command = ((char *)buf)[0];
-      // Serial.println(command);
-
-      checkGas(buf[1]);
-
-      checkServo(buf[2]);
-    }
     digitalWrite(PICO_DEFAULT_LED_PIN, LOW);
+    lastGasCheck = millis();
   }
+  else
+  {
+    // no signal, slow down to zero
+    if (millis() - lastGasCheck > 250)
+    {
+      checkGas(0);
+    }
+  }
+
+  delay(SERVO_DELAY_MS);
 }
