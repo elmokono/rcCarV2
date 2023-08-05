@@ -27,7 +27,7 @@ const byte address[6] = "00010";
 #define SERVO_DELAY_MS 15
 
 #define GAS_PIN 26
-#define GAS_LIMIT 8
+#define GAS_LIMIT 128
 
 RF24 radio(CE_PIN, CS_PIN);
 Servo servo;
@@ -50,9 +50,7 @@ void setup()
       delay(50);
     }
   }
-  // radio.openReadingPipe(0, address);
-  // radio.setPALevel(RF24_PA_MIN);
-  // radio.startListening();
+  
   radio.setPALevel(RF24_PA_MIN);
   radio.setDataRate(RF24_250KBPS);
   radio.setChannel(124);
