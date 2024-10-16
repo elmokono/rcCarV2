@@ -43,6 +43,7 @@ const byte address[6] = "00010";
 //#define SERVO_REF_ANGLE 45
 
 #define GAS_PIN 1
+#define GAS_ZERO_MICROS 0
 #define GAS_MIN_MICROS 1500
 #define GAS_MAX_MICROS 2000
 //#define GAS_LIMIT 1750
@@ -109,7 +110,9 @@ void initThrottle()
 
 void setup()
 {
-  led.begin();  
+  led.begin(); 
+  doLed(0,0,255);
+
   delay(2000);
   Serial.begin(9600); // Debugging only
   Serial.println("init..");
