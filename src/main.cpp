@@ -36,14 +36,16 @@ const byte address[6] = "00010";
 
 #define SERVO_PIN 0
 #define SERVO_DELAY_MS 50
-#define MIN_MICROS 800
-#define MAX_MICROS 2450
+#define SERVO_MIN_MICROS 800
+#define SERVO_MAX_MICROS 2450
+#define SERVO_MIN_ANGLE 0
+#define SERVO_MAX_ANGLE 90
+//#define SERVO_REF_ANGLE 45
 
 #define GAS_PIN 1
+#define GAS_MIN_MICROS 1500
+#define GAS_MAX_MICROS 2000
 //#define GAS_LIMIT 1750
-
-#define SERVO_MAX_ANGLE 35
-#define SERVO_REF_ANGLE 45
 
 RF24 radio(CE_PIN, CS_PIN);
 unsigned long lastGasCheck = 0;
@@ -77,6 +79,34 @@ void initRadio()
   radio.startListening();
 }
 
+void initSteering()
+{
+  pinMode(SERVO_PIN, OUTPUT);
+  digitalWrite(SERVO_PIN, LOW);
+  RP2040_ISR_Servos.setupServo(SERVO_PIN, SERVO_MIN_MICROS, SERVO_MAX_MICROS);
+  RP2040_ISR_Servos.setPosition(SERVO_PIN, SERVO_MIN_ANGLE);
+  delay(500);
+  RP2040_ISR_Servos.setPosition(SERVO_PIN, SERVO_MAX_ANGLE);
+  delay(500);
+  RP2040_ISR_Servos.setPosition(SERVO_PIN, (SERVO_MAX_ANGLE - SERVO_MIN_ANGLE)/2);
+  lastServo = millis();
+}
+
+void initThrottle()
+{
+  pinMode(GAS_PIN, OUTPUT);
+  digitalWrite(GAS_PIN, LOW);
+  RP2040_ISR_Servos.setupServo(GAS_PIN, GAS_MIN_MICROS, GAS_MAX_MICROS);
+  //arm sequence
+  RP2040_ISR_Servos.setPosition(GAS_PIN, GAS_MIN_MICROS);
+  delay(2000);
+  RP2040_ISR_Servos.setPosition(GAS_PIN, GAS_MAX_MICROS);
+  delay(1000);
+  RP2040_ISR_Servos.setPosition(GAS_PIN, GAS_MIN_MICROS);
+
+  lastGasCheck = lastAlive = millis();
+}
+
 void setup()
 {
   led.begin();  
@@ -88,22 +118,13 @@ void setup()
   initRadio();
   Serial.println("radio ok");
   
-  pinMode(SERVO_PIN, OUTPUT);
-  digitalWrite(SERVO_PIN, LOW);
-  RP2040_ISR_Servos.setupServo(SERVO_PIN, MIN_MICROS, MAX_MICROS);
-  RP2040_ISR_Servos.setPosition(SERVO_PIN, SERVO_REF_ANGLE+SERVO_MAX_ANGLE);
-  delay(500);
-  RP2040_ISR_Servos.setPosition(SERVO_PIN, SERVO_REF_ANGLE-SERVO_MAX_ANGLE);
-  delay(500);
-  RP2040_ISR_Servos.setPosition(SERVO_PIN, SERVO_REF_ANGLE);
-  lastServo = millis();
-  Serial.println("servo ok");
+  initSteering();
+  Serial.println("steering ok");
 
-  pinMode(GAS_PIN, OUTPUT);
-  lastGasCheck = lastAlive = millis();
+  initThrottle();
+  Serial.println("throttle ok");
 
   doLed(0,255,0);
-
   Serial.println("RC Car V4 ready");
 }
 
@@ -118,7 +139,7 @@ void checkGas(uint8_t gasLevel)
   analogWrite(GAS_PIN, gasLevel > GAS_LIMIT ? GAS_LIMIT : gasLevel);
 #else
   int escGas = map(gasLevel, 0, 255, 1500, 2000);
-  analogWrite(GAS_PIN, escGas);
+  RP2040_ISR_Servos.setPosition(GAS_PIN, escGas);
 #endif
   lastGas = gasLevel;
   // Serial.println(gasLevel);
@@ -141,8 +162,10 @@ void checkServo(uint8_t steerLevel)
 
 //50 - 90 - 130
 
-  int value = (steerLevel * SERVO_MAX_ANGLE * 2 / 255.0);
-  RP2040_ISR_Servos.setPosition(SERVO_PIN, value + SERVO_REF_ANGLE - SERVO_MAX_ANGLE);
+  //int value = (steerLevel * SERVO_MAX_ANGLE * 2 / 255.0);
+  //RP2040_ISR_Servos.setPosition(SERVO_PIN, value + SERVO_REF_ANGLE - SERVO_MAX_ANGLE);
+  int value = map(steerLevel, 0, 255, SERVO_MIN_ANGLE, SERVO_MAX_ANGLE);
+  RP2040_ISR_Servos.setPosition(SERVO_PIN, value);
   lastSteer = steerLevel;
   lastServo = millis();
 }
