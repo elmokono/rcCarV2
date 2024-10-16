@@ -46,7 +46,7 @@ const byte address[6] = "00010";
 #define GAS_ZERO_MICROS 0
 #define GAS_MIN_MICROS 1500
 #define GAS_MAX_MICROS 2000
-//#define GAS_LIMIT 1750
+#define GAS_LIMIT 1900
 
 RF24 radio(CE_PIN, CS_PIN);
 unsigned long lastGasCheck = 0;
@@ -139,9 +139,10 @@ void checkGas(uint8_t gasLevel)
   }
 
 #ifdef GAS_LIMIT
-  analogWrite(GAS_PIN, gasLevel > GAS_LIMIT ? GAS_LIMIT : gasLevel);
+  int escGas = map(gasLevel, 0, 255, GAS_MIN_MICROS, GAS_LIMIT);
+  RP2040_ISR_Servos.setPosition(GAS_PIN, escGas);
 #else
-  int escGas = map(gasLevel, 0, 255, 1500, 2000);
+  int escGas = map(gasLevel, 0, 255, GAS_MIN_MICROS, GAS_MAX_MICROS);
   RP2040_ISR_Servos.setPosition(GAS_PIN, escGas);
 #endif
   lastGas = gasLevel;
