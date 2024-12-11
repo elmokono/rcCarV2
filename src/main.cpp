@@ -39,7 +39,7 @@ const byte address[6] = "00010";
 #define SERVO_MIN_MICROS 800
 #define SERVO_MAX_MICROS 2450
 #define SERVO_MIN_ANGLE 0
-#define SERVO_MAX_ANGLE 90
+#define SERVO_MAX_ANGLE 120
 //#define SERVO_REF_ANGLE 45
 
 #define GAS_PIN 1
