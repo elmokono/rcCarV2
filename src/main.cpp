@@ -46,7 +46,8 @@ const byte address[6] = "00010";
 #define GAS_ZERO_MICROS 0
 #define GAS_MIN_MICROS 1500
 #define GAS_MAX_MICROS 2000
-#define GAS_LIMIT 1900
+#define GAS_LIMIT 1600
+#define GAS_DEADZONE 0.25 //first 35% is zero
 
 RF24 radio(CE_PIN, CS_PIN);
 unsigned long lastGasCheck = 0;
@@ -138,6 +139,11 @@ void checkGas(uint8_t gasLevel)
     return;
   }
 
+  if (gasLevel < (255 * GAS_DEADZONE))
+  {
+    gasLevel = 0;
+  }
+
 #ifdef GAS_LIMIT
   int escGas = map(gasLevel, 0, 255, GAS_MIN_MICROS, GAS_LIMIT);
   RP2040_ISR_Servos.setPosition(GAS_PIN, escGas);
@@ -146,7 +152,7 @@ void checkGas(uint8_t gasLevel)
   RP2040_ISR_Servos.setPosition(GAS_PIN, escGas);
 #endif
   lastGas = gasLevel;
-  // Serial.println(gasLevel);
+  Serial.print("remote level:");Serial.print(gasLevel);Serial.print(" car level:");Serial.println(escGas);
 }
 
 void checkServo(uint8_t steerLevel)
