@@ -57,8 +57,12 @@ const byte address[6] = "00010";
 #define GAS_MIN_BRAKE_MICROS 1000
 #define GAS_MAX_BRAKE_MICROS 1450
 #define GAS_DEADZONE 0.15 // first 15% is zero
-#define BRAKE_FLAG 2
+#define BRAKE_PIN 5
 #define BRAKE_LIMIT 1200
+
+//remote control byte 3 flags
+#define BRAKE_FLAG 2
+#define NULL_FLAG 0
 
 RF24 radio(CE_PIN, CS_PIN);
 unsigned long lastGasCheck = 0;
@@ -73,6 +77,11 @@ void doLed(int r, int g, int b)
 {
   led.setPixelColor(0, led.Color(r, g, b, 255));
   led.show();
+}
+
+void initLeds()
+{
+  pinMode(BRAKE_PIN, OUTPUT);
 }
 
 void initRadio()
@@ -132,6 +141,8 @@ void setup()
   Serial.println("init..");
   doLed(255, 255, 0);
 
+  initLeds();
+
   initRadio();
   Serial.println("radio ok");
 
@@ -157,6 +168,7 @@ void checkGas(uint8_t gasLevel, uint8_t brakeFlag)
 #endif
       brakeLevel -= 25;
     RP2040_ISR_Servos.setPosition(GAS_PIN, brakeLevel);
+    digitalWrite(BRAKE_PIN, HIGH);
 
 #ifdef LOG
     Serial.print(" car brake level:");
@@ -167,6 +179,7 @@ void checkGas(uint8_t gasLevel, uint8_t brakeFlag)
   {
     // reset brake
     brakeLevel = GAS_MAX_BRAKE_MICROS;
+    digitalWrite(BRAKE_PIN, LOW);
 
     // accelerating
     if (gasLevel != lastGas)
@@ -190,7 +203,7 @@ void checkGas(uint8_t gasLevel, uint8_t brakeFlag)
       Serial.print(" car level:");
       Serial.println(escGas);
       Serial.print(" car brake level:");
-      Serial.print(brakeLevel);
+      Serial.println(brakeLevel);
 #endif
 
       lastGas = gasLevel;
@@ -282,7 +295,7 @@ void loop()
     if (millis() - lastGasCheck > 250)
     {
       // doLed(255, 0, 0);
-      checkGas(0, BRAKE_FLAG);
+      checkGas(0, NULL_FLAG);
     }
   }
 
